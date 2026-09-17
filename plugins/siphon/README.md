@@ -130,7 +130,7 @@ payload from either the nested `tool_input` shape or Cursor's top-level shape.
 Fires on file reads. Blocks above `SIPHON_MIN_LINES` (default 350). Allows
 targeted reads (offset or limit set), small files, and nonexistent paths.
 
-**Codex has no `Read` tool**, so this hook never fires there.
+**Codex has no `Read` tool**, so this hook has nothing to match there.
 
 ### check-bash-read
 
@@ -167,8 +167,11 @@ See the table in the [root README](../../README.md).
 ## Limitations
 
 - **Latency**: a round trip is seconds, so tiny delegations are counterproductive.
-- **Codex enforcement is partial**: no `Read` tool, so only the shell gate applies.
-- **Cursor hooks are not yet verified end-to-end** on a live install.
+- **Codex has no working hard gate.** Tested on codex-cli 0.154.0, `PreToolUse` never
+  fires for a plugin hook, even with a `*` matcher and an absolute path; only
+  `SessionStart` does. Skills and scripts work, so delegation there is the agent's
+  choice rather than an enforced one.
+- **Cursor is untested end to end** on a live install.
 - **Request size**: capped by `SIPHON_MAX_REQUEST_BYTES` (2 MB) as a cost
   circuit-breaker, not an OS limit. The model accepts about 1M tokens.
 - **Benchmarks**: the numbers in `evals/benchmarks.json` were measured against

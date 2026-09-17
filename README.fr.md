@@ -22,16 +22,33 @@ Fonctionne sur **Claude Code**, et embarque les manifestes **Codex** et **Cursor
 
 ## Démarrage rapide
 
-```bash
-# 1. Récupérez une clé sur https://aistudio.google.com/apikey, puis :
-export GEMINI_API_KEY="votre-clé"
+**1. Récupérez une clé API** sur [aistudio.google.com/apikey](https://aistudio.google.com/apikey) :
 
-# 2. Installez
+```bash
+export GEMINI_API_KEY="votre-clé"
+```
+
+**2. Installez le plugin dans votre agent.**
+
+Claude Code :
+
+```bash
 claude plugin marketplace add BenjaminPolge/siphon
 claude plugin install siphon@siphon-plugins
 ```
 
-Ouvrez une nouvelle session et lancez :
+Codex :
+
+```bash
+codex plugin marketplace add BenjaminPolge/siphon
+codex plugin add siphon@siphon-plugins
+```
+
+Cursor : copiez ou liez `plugins/siphon` dans `~/.cursor/plugins/local/siphon/`, puis
+activez-le depuis **Settings → Customize → Plugins**. Cursor demande lui-même la clé API
+à l'installation, elle ne touche donc aucun fichier.
+
+**3. Ouvrez une nouvelle session** et lancez :
 
 ```text
 /siphon:setup
@@ -81,15 +98,24 @@ arguments nommés.
 
 | Couche | Claude Code | Codex | Cursor |
 |---|---|---|---|
-| Hook sur la lecture de fichiers | ✅ | ❌ **pas d'outil `Read`** | ✅ |
-| Hook sur les lectures shell | ✅ | ✅ | ✅ |
+| Hook sur la lecture de fichiers | ✅ | ❌ pas d'outil `Read` | ❓ |
+| Hook sur les lectures shell | ✅ | ❌ voir ci-dessous | ❓ |
 | Scripts | ✅ | ✅ | ✅ |
-| Skills | ✅ | ✅ | ✅ |
+| Skills | ✅ | ✅ | ❓ |
 
-Vérifié de bout en bout sur Claude Code. Le support Codex et Cursor est écrit d'après
-leurs documentations officielles mais **n'a pas été vérifié sur une installation
-réelle**. Sur Codex, l'application restera de toute façon partielle : l'hôte n'a pas
-d'outil `Read`, donc les lectures y passent par le shell.
+**Claude Code est vérifié de bout en bout** : le hook bloque, la skill se déclenche, la
+délégation s'exécute.
+
+**Sous Codex, les hooks ne se déclenchent pas.** Testé sur codex-cli 0.154.0 :
+`SessionStart` s'exécute, mais jamais `PreToolUse`, y compris avec un matcher `*` et un
+chemin de commande absolu. Codex documente pourtant cet événement, il s'agit donc
+peut-être d'un décalage de version plutôt que d'un choix. En attendant, Codex reçoit les
+skills et les scripts mais **aucune barrière dure** : la délégation dépend du bon vouloir
+de l'agent. Codex n'a par ailleurs pas d'outil `Read`, donc même un hook fonctionnel ne
+couvrirait que les lectures shell.
+
+**Cursor n'est pas testé.** Les manifestes suivent sa documentation, mais rien n'a été
+exécuté sur une installation réelle.
 
 ## Prérequis
 

@@ -20,16 +20,33 @@ Works in **Claude Code**, and ships manifests for **Codex** and **Cursor**.
 
 ## Quick start
 
-```bash
-# 1. Get a key at https://aistudio.google.com/apikey, then:
-export GEMINI_API_KEY="your-key"
+**1. Get an API key** at [aistudio.google.com/apikey](https://aistudio.google.com/apikey):
 
-# 2. Install
+```bash
+export GEMINI_API_KEY="your-key"
+```
+
+**2. Install it in your agent.**
+
+Claude Code:
+
+```bash
 claude plugin marketplace add BenjaminPolge/siphon
 claude plugin install siphon@siphon-plugins
 ```
 
-Start a new session and run:
+Codex:
+
+```bash
+codex plugin marketplace add BenjaminPolge/siphon
+codex plugin add siphon@siphon-plugins
+```
+
+Cursor: copy or symlink `plugins/siphon` into `~/.cursor/plugins/local/siphon/`, then
+enable it under **Settings → Customize → Plugins**. Cursor asks for the API key itself
+at install time, so it never touches a file.
+
+**3. Start a new session** and run:
 
 ```text
 /siphon:setup
@@ -77,15 +94,23 @@ The agent never assembles a pipeline from prose; it calls a script with named ar
 
 | Layer | Claude Code | Codex | Cursor |
 |---|---|---|---|
-| Hook on file reads | ✅ | ❌ **no `Read` tool exists** | ✅ |
-| Hook on shell reads | ✅ | ✅ | ✅ |
+| Hook on file reads | ✅ | ❌ no `Read` tool exists | ❓ |
+| Hook on shell reads | ✅ | ❌ see below | ❓ |
 | Scripts | ✅ | ✅ | ✅ |
-| Skills | ✅ | ✅ | ✅ |
+| Skills | ✅ | ✅ | ❓ |
 
-Verified end-to-end on Claude Code. Codex and Cursor support is written to their
-official documentation but has **not been verified on a live install**. On Codex,
-enforcement is partial in any case, since the host has no `Read` tool and file reads
-go through the shell.
+**Claude Code is verified end to end**: the hook blocks, the skill fires, and the
+delegation runs.
+
+**On Codex, the hooks do not fire.** Tested on codex-cli 0.154.0: `SessionStart` runs,
+but `PreToolUse` never does, even with a catch-all `*` matcher and an absolute command
+path. Codex documents the event, so this may be a version gap rather than a design
+choice. Until it changes, Codex gets the skills and the scripts but **no hard gate**:
+delegation depends on the agent choosing it. Codex also has no `Read` tool, so even a
+working hook would only cover shell reads.
+
+**Cursor is untested.** The manifests follow its documentation, but nothing here has
+been run against a live install.
 
 ## Requirements
 

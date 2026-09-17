@@ -39,7 +39,8 @@ It began as a fork of `spotify/portal-ai-plugins`; see `NOTICE`.
   --config` pipe — never in argv, where `ps` would expose it, and never in a
   query string, which proxies log.
 - Hooks emit the **union** of all three hosts' response shapes *and* exit 2 on
-  block. Exit 2 is the one contract every host documents as blocking, so
+  block. Note that Codex does not currently fire `PreToolUse` for plugin hooks
+  (verified on codex-cli 0.154.0), so the gate is real only on Claude Code. Exit 2 is the one contract every host documents as blocking, so
   enforcement survives a host rejecting a JSON shape it does not know. Any change
   to hook output must stay covered by the eval suite.
 - Scripts resolve their own location from `$0`; skills resolve the plugin root
