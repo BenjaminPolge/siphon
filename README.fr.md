@@ -4,18 +4,18 @@
 
 > Un fork de [spotify/portal-ai-plugins](https://github.com/spotify/portal-ai-plugins),
 > **adapté pour fonctionner sans Spotify Portal**. Même principe, mêmes prompts, mêmes
-> résultats — mais il parle directement à l'API Google AI Studio (Gemini), donc une
+> résultats, mais il parle directement à l'API Google AI Studio (Gemini), donc une
 > simple clé API suffit.
 
 L'essentiel du travail d'un agent de code n'est pas de la réflexion, c'est de
 l'entrée-sortie. Siphon intercepte la partie coûteuse et l'envoie à un modèle
 d'exécution bon marché :
 
-- **bulk-reader** — lire beaucoup de fichiers, ou de gros fichiers, et répondre à une question
-- **code-writer** — générer du code répétitif calqué sur vos fichiers existants
+- **bulk-reader** : lire beaucoup de fichiers, ou de gros fichiers, et répondre à une question
+- **code-writer** : générer du code répétitif calqué sur vos fichiers existants
 
 Mesuré sur les fixtures du dépôt : un fichier de 602 lignes coûte **12 006 tokens** à
-lire directement, contre **137 tokens** pour la réponse qui revient — **98 % de contexte
+lire directement, contre **137 tokens** pour la réponse qui revient : **98 % de contexte
 en moins**, en 2 secondes environ et pour un demi-centime.
 
 Fonctionne sur **Claude Code**, et embarque les manifestes **Codex** et **Cursor**.
@@ -55,7 +55,7 @@ choisi côté serveur. Ce fork supprime entièrement cette dépendance.
 | Modèle | imposé par l'instance | `SIPHON_MODEL`, par défaut `gemini-2.5-flash` |
 | Taille de requête | 120 Ko (le prompt passait par `argv`) | ~1 M de tokens |
 | Hôtes | Claude Code | Claude Code, Codex, Cursor |
-| Workflows catalogue Portal | `search`, `service`, `actions`, `feedback` | supprimés — ils interrogent un catalogue Backstage qu'aucune API ne remplace |
+| Workflows catalogue Portal | `search`, `service`, `actions`, `feedback` | supprimés : ils interrogent un catalogue Backstage qu'aucune API ne remplace |
 
 L'architecture en trois couches, les deux prompts d'exécution (repris mot pour mot),
 l'interface en ligne de commande et la règle « un appel = un coup » sont inchangés.
@@ -88,13 +88,13 @@ arguments nommés.
 
 Vérifié de bout en bout sur Claude Code. Le support Codex et Cursor est écrit d'après
 leurs documentations officielles mais **n'a pas été vérifié sur une installation
-réelle** — et sur Codex l'application restera partielle de toute façon, l'hôte n'ayant
-pas d'outil `Read` : les lectures y passent par le shell.
+réelle**. Sur Codex, l'application restera de toute façon partielle : l'hôte n'a pas
+d'outil `Read`, donc les lectures y passent par le shell.
 
 ## Prérequis
 
-- [`jq`](https://jqlang.org) — `brew install jq`
-- `curl` — fourni avec macOS
+- [`jq`](https://jqlang.org): `brew install jq`
+- `curl`: fourni avec macOS
 - Une clé API Google AI Studio
 
 > **Où partent vos fichiers.** Les fichiers délégués sont envoyés à l'API publique de
@@ -106,12 +106,12 @@ pas d'outil `Read` : les lectures y passent par le shell.
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `GEMINI_API_KEY` | — | Clé API |
+| `GEMINI_API_KEY` | - | Clé API |
 | `GEMINI_API_KEY_FILE` | `~/.config/siphon/gemini.key` | Lu si la variable n'est pas définie |
 | `SIPHON_MODEL` | `gemini-2.5-flash` | Modèle des appels délégués |
 | `SIPHON_MIN_LINES` | `350` | Nombre de lignes au-delà duquel une lecture est bloquée |
 | `SIPHON_PEEK_LINES` | `50` | Un compte explicite inférieur ou égal est un coup d'œil, pas une lecture massive |
-| `SIPHON_THINKING_BUDGET` | `0` | Budget de réflexion de Gemini — voir ci-dessous |
+| `SIPHON_THINKING_BUDGET` | `0` | Budget de réflexion de Gemini (voir ci-dessous) |
 | `SIPHON_TIMEOUT_SECONDS` | `180` | Plafond par appel |
 
 ### Pourquoi la réflexion est désactivée par défaut
@@ -124,9 +124,9 @@ réponse tronquée. Les tâches d'exécution n'y gagnent rien. Mettez
 
 ## Ce qui n'est jamais délégué
 
-- **Le débogage** — cela demande un vrai raisonnement, pas un résumé
-- **L'édition** — l'agent a besoin du contenu exact ; préférez une lecture ciblée
-- **Les décisions d'architecture** — le jugement reste au modèle principal
+- **Le débogage** : cela demande un vrai raisonnement, pas un résumé
+- **L'édition** : l'agent a besoin du contenu exact ; préférez une lecture ciblée
+- **Les décisions d'architecture** : le jugement reste au modèle principal
 
 ## Développement
 

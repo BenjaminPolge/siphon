@@ -1,7 +1,7 @@
 # siphon
 
 > A fork of [spotify/portal-ai-plugins](https://github.com/spotify/portal-ai-plugins),
-> **adapted to run without Spotify Portal** — it calls the Google AI Studio (Gemini)
+> **adapted to run without Spotify Portal**. It calls the Google AI Studio (Gemini)
 > API directly, so an API key is the only prerequisite.
 >
 > See the [root README](../../README.md) for the overview, or its
@@ -38,7 +38,7 @@ Delegation is one HTTPS call per request to
 
 ## Prerequisites
 
-- [`jq`](https://jqlang.org) — `brew install jq`
+- [`jq`](https://jqlang.org): `brew install jq`
 - `curl`
 - A key from https://aistudio.google.com/apikey
 
@@ -49,7 +49,7 @@ Then, in a new session:
 ```
 
 `setup` verifies the key by making one metadata call and writes the configuration
-into the host's own config — never into the repository.
+into the host's own config, never into the repository.
 
 ## Modes
 
@@ -100,7 +100,7 @@ bulk-read --question "Which methods call the database?" --paths src/Service.java
 ### code-write
 
 Strips a wrapping markdown fence and can write straight to disk. `--reference` is
-required — without a file to match patterns against, the worker generates
+required: without a file to match patterns against, the worker generates
 context-free code that fits nothing in the project.
 
 ```bash
@@ -114,7 +114,7 @@ file is either complete or absent. Set `SIPHON_ALLOW_TRUNCATED=1` to override.
 ### One shot per call
 
 Every delegation stands alone. `generateContent` is stateless, and the only way
-to carry context across calls would be to replay it from this side — which for a
+to carry context across calls would be to replay it from this side, which for a
 file corpus is the very cost the plugin exists to avoid. Re-sending files is free
 where it matters, because the corpus goes to the worker and never enters the main
 model's context.
@@ -139,10 +139,10 @@ context: `cat`, `head`, `tail`, `less`, `more`, `grep`/`rg`, `awk`, `sed`.
 
 Allowed through:
 
-- reducing forms — `grep -c`, `grep -l`, `grep -q`, `grep -m`
-- an explicit small count — `head -n 5`, `tail -n 20`, `sed -n '1,10p'`
-- pipelines with a reducing stage — `cat big.ts | grep export`
-- redirections — `cat big.ts > out` is not a read into context
+- reducing forms: `grep -c`, `grep -l`, `grep -q`, `grep -m`
+- an explicit small count: `head -n 5`, `tail -n 20`, `sed -n '1,10p'`
+- pipelines with a reducing stage: `cat big.ts | grep export`
+- redirections: `cat big.ts > out` is not a read into context
 
 The coverage is deliberately wider than the obvious tools. In a real session the
 agent reached for `grep -n "export" big.ts` on a 600-line file where every line
@@ -159,19 +159,19 @@ See the table in the [root README](../../README.md).
 
 ## What doesn't get delegated
 
-- **Debugging** — requires real reasoning, not a summary
-- **Editing** — the agent needs exact content in context; use a targeted read
-- **Architectural decisions** — judgment stays with the main model
-- **Small files** — below the threshold the round trip costs more than it saves
+- **Debugging**: requires real reasoning, not a summary
+- **Editing**: the agent needs exact content in context; use a targeted read
+- **Architectural decisions**: judgment stays with the main model
+- **Small files**: below the threshold the round trip costs more than it saves
 
 ## Limitations
 
-- **Latency** — a round trip is seconds, so tiny delegations are counterproductive.
-- **Codex enforcement is partial** — no `Read` tool, so only the shell gate applies.
+- **Latency**: a round trip is seconds, so tiny delegations are counterproductive.
+- **Codex enforcement is partial**: no `Read` tool, so only the shell gate applies.
 - **Cursor hooks are not yet verified end-to-end** on a live install.
-- **Request size** — capped by `SIPHON_MAX_REQUEST_BYTES` (2 MB) as a cost
+- **Request size**: capped by `SIPHON_MAX_REQUEST_BYTES` (2 MB) as a cost
   circuit-breaker, not an OS limit. The model accepts about 1M tokens.
-- **Benchmarks** — the numbers in `evals/benchmarks.json` were measured against
+- **Benchmarks**: the numbers in `evals/benchmarks.json` were measured against
   the previous AiKA backend and are pending re-measurement on `gemini-2.5-flash`.
 
 ## Evals
