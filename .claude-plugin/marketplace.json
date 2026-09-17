@@ -1,37 +1,28 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "portal",
-  "version": "0.1.0",
-  "description": "Official Spotify Portal plugin marketplace for AI coding tools.",
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "siphon-plugins",
   "owner": {
-    "name": "Spotify Portal"
+    "name": "Benjamin Polge",
+    "url": "https://github.com/BenjaminPolge/siphon"
   },
+  "description": "Token-saving delegation plugins backed by the Google AI Studio (Gemini) API.",
   "plugins": [
     {
-      "name": "portal",
-      "description": "Set up, diagnose, search, and operate Spotify Portal through focused Portal CLI workflows.",
-      "version": "0.1.0",
+      "name": "siphon",
+      "displayName": "Siphon",
+      "version": "1.0.0",
+      "description": "Siphons I/O-heavy work to the Google AI Studio (Gemini) API to save tokens. Hooks block large file reads and redirect to bulk-read/code-write scripts that call Gemini directly.",
       "author": {
-        "name": "Spotify Portal"
+        "name": "Benjamin Polge"
       },
-      "homepage": "https://backstage.spotify.com/docs/portal",
-      "repository": "https://github.com/spotify/portal-ai-plugins",
-      "source": {
-        "source": "url",
-        "url": "https://github.com/spotify/portal-ai-plugins.git"
-      },
-      "category": "developer-tools"
-    },
-    {
-      "name": "shunt",
-      "description": "Shunts I/O-heavy work to AiKA modes to save tokens. Hooks block large file reads and redirect to bulk-reader/code-writer scripts backed by the Portal CLI.",
-      "version": "0.2.0",
-      "author": {
-        "name": "Spotify"
-      },
-      "homepage": "https://backstage.spotify.com/docs/portal",
-      "repository": "https://github.com/spotify/portal-ai-plugins",
-      "source": "./plugins/shunt",
+      "license": "Apache-2.0",
+      "keywords": [
+        "token-optimization",
+        "model-routing",
+        "delegation",
+        "gemini"
+      ],
+      "source": "./plugins/siphon",
       "category": "developer-tools"
     }
   ]

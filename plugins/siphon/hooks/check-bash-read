@@ -1,0 +1,110 @@
+#!/bin/bash
+# Block shell commands that dump a large file into context, and redirect to the
+# bulk-reader skill. This is the only gate on Codex, which has no Read tool.
+#
+# Coverage is deliberately wider than "cat/head/tail". A real session showed the
+# agent reaching for `grep -n "export" big.ts` on a 600-line file where every
+# line matched: the whole file entered context and the original hook allowed it,
+# because grep was not in its list. A gate that only catches the obvious tools
+# is a gate the agent walks around without meaning to.
+
+. "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/lib/hook-io.sh"
+
+MIN_LINES=$(hook_min_lines)
+PEEK_LINES=$(hook_peek_lines)
+input=$(cat)
+
+command=$(hook_field "$input" command)
+[ -z "$command" ] && hook_allow
+
+# Redirections write to a file rather than into context.
+case "$command" in *'>'*) hook_allow ;; esac
+
+# A pipeline whose later stages reduce the output (grep, wc, head…) is a
+# targeted read. Only an unreduced pipeline still counts as a dump.
+first_segment="${command%%|*}"
+if [ "$first_segment" != "$command" ]; then
+  rest="${command#*|}"
+  case " $(printf '%s' "$rest" | tr -cs 'a-zA-Z0-9_-' ' ') " in
+    *" grep "*|*" egrep "*|*" fgrep "*|*" rg "*|*" head "*|*" tail "*|*" wc "*|\
+*" jq "*|*" awk "*|*" sed "*|*" sort "*|*" uniq "*|*" cut "*|*" tr "*)
+      hook_allow ;;
+  esac
+fi
+
+# Split the first segment into arguments, honouring quotes. The original used
+# `for arg in $args`, which word-splits on spaces: any path containing one --
+# and this very repository lives under such a path -- silently fell through to
+# "allow". Failing open is the wrong direction for a cost gate.
+args=()
+while IFS= read -r a; do args+=("$a"); done < <(printf '%s' "$first_segment" | xargs -n1 printf '%s\n' 2>/dev/null)
+[ ${#args[@]} -eq 0 ] && hook_allow
+
+cmd="${args[0]}"
+case "$cmd" in
+  cat|less|more|head|tail|grep|egrep|fgrep|rg|awk|sed) ;;
+  *) hook_allow ;;
+esac
+
+# Flags that make the command reduce rather than dump.
+count=""
+explicit_count=false
+sed_quiet=false
+for ((i = 1; i < ${#args[@]}; i++)); do
+  a="${args[$i]}"
+  case "$a" in
+    -c|-l|-L|-q|--count|--files-with-matches|--files-without-match|--quiet)
+      # grep in counting/listing mode emits a line or two, not the file.
+      case "$cmd" in grep|egrep|fgrep|rg) hook_allow ;; esac ;;
+    -m|--max-count)
+      case "$cmd" in grep|egrep|fgrep|rg) hook_allow ;; esac ;;
+    -n)
+      case "$cmd" in
+        head|tail) count="${args[$((i + 1))]:-}"; explicit_count=true ;;
+        sed)       sed_quiet=true ;;
+      esac ;;
+    -[0-9]*)
+      case "$cmd" in head|tail) count="${a#-}"; explicit_count=true ;; esac ;;
+  esac
+done
+
+# `sed -n '1,20p'` is a targeted slice, not a dump.
+if [ "$cmd" = "sed" ] && [ "$sed_quiet" = true ]; then
+  end=$(printf '%s\n' "${args[@]}" | sed -n 's/^[0-9]*,\([0-9]*\)p$/\1/p' | head -1)
+  if [ -n "$end" ] && [ "$end" -le "$PEEK_LINES" ]; then hook_allow; fi
+fi
+
+# A small explicit count is a peek, not a bulk read.
+if [ "$explicit_count" = true ] && [ -n "$count" ]; then
+  case "$count" in
+    ''|*[!0-9]*) ;;
+    *) [ "$count" -le "$PEEK_LINES" ] && hook_allow ;;
+  esac
+fi
+
+# The file is the first non-flag argument that is not a consumed count.
+file_path=""
+skip_next=false
+for ((i = 1; i < ${#args[@]}; i++)); do
+  a="${args[$i]}"
+  if [ "$skip_next" = true ]; then skip_next=false; continue; fi
+  case "$a" in
+    -n) case "$cmd" in head|tail) skip_next=true ;; esac; continue ;;
+    -*) continue ;;
+  esac
+  # grep/awk/sed take a pattern or program before the file.
+  case "$cmd" in
+    grep|egrep|fgrep|rg|awk|sed)
+      if [ -z "${pattern_seen:-}" ] && [ ! -f "$a" ]; then pattern_seen=1; continue; fi ;;
+  esac
+  file_path="$a"; break
+done
+
+[ -z "$file_path" ] && hook_allow
+[ ! -f "$file_path" ] && hook_allow
+
+lines=$(hook_line_count "$file_path")
+[ -z "$lines" ] && hook_allow
+[ "$lines" -le "$MIN_LINES" ] && hook_allow
+
+hook_block "File is ${lines} lines (threshold: ${MIN_LINES}). Use the bulk-reader skill to delegate this read to Gemini instead of dumping it into context with ${cmd}. For a targeted look, add an explicit small count or pipe through a filter."

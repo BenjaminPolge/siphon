@@ -7,3 +7,12 @@ CLAUDE.local.md
 
 # macOS
 .DS_Store
+
+# Secrets — setup writes an API key into host config, never into the repo
+.env
+.env.*
+*.key
+*.pem
+.claude/settings.local.json
+.cursor/
+.codex/

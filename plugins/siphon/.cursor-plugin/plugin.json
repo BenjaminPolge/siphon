@@ -1,0 +1,48 @@
+{
+  "name": "siphon",
+  "displayName": "Siphon",
+  "version": "1.0.0",
+  "description": "Siphons I/O-heavy work to the Google AI Studio (Gemini) API to save tokens. Hooks block large file reads and redirect to bulk-read/code-write scripts that call Gemini directly.",
+  "author": {
+    "name": "Benjamin Polge",
+    "url": "https://github.com/BenjaminPolge/siphon"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "token-optimization",
+    "model-routing",
+    "delegation",
+    "gemini",
+    "google-ai-studio"
+  ],
+  "logo": "assets/siphon-icon-light.svg",
+  "skills": "./skills/",
+  "hooks": "./hooks/cursor-hooks.json",
+  "variables": {
+    "type": "object",
+    "properties": {
+      "GEMINI_API_KEY": {
+        "type": "string",
+        "title": "Google AI Studio API key",
+        "description": "Key from https://aistudio.google.com/apikey. Sent only as the x-goog-api-key header to generativelanguage.googleapis.com."
+      },
+      "SIPHON_MODEL": {
+        "type": "string",
+        "title": "Gemini model",
+        "default": "gemini-2.5-flash",
+        "description": "Model used for delegated calls."
+      },
+      "SIPHON_MIN_LINES": {
+        "type": "string",
+        "title": "Read threshold (lines)",
+        "default": "350",
+        "description": "Line count above which reads are blocked and redirected."
+      }
+    },
+    "required": [
+      "GEMINI_API_KEY"
+    ]
+  },
+  "homepage": "https://github.com/BenjaminPolge/siphon",
+  "repository": "https://github.com/BenjaminPolge/siphon"
+}

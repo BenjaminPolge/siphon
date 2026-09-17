@@ -1,0 +1,28 @@
+#!/bin/bash
+# Block full-file reads on large files, redirect to the bulk-reader skill.
+# Self-contained: all routing logic lives here, no CLAUDE.md needed.
+#
+# Note: Codex has no Read tool -- file reads there go through the shell, so on
+# Codex this hook never fires and check-bash-read is the only gate.
+
+. "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/lib/hook-io.sh"
+
+MIN_LINES=$(hook_min_lines)
+input=$(cat)
+
+file_path=$(hook_field "$input" file_path)
+offset=$(hook_field "$input" offset)
+limit=$(hook_field "$input" limit)
+
+# Targeted reads (offset or limit set) — the agent already knows what it needs.
+[ -n "$offset" ] || [ -n "$limit" ] && hook_allow
+
+# Missing or nonexistent path — let the real tool report the error.
+[ -z "$file_path" ] || [ ! -f "$file_path" ] && hook_allow
+
+# Small files — delegation overhead isn't worth it.
+lines=$(hook_line_count "$file_path")
+[ -z "$lines" ] && hook_allow
+[ "$lines" -le "$MIN_LINES" ] && hook_allow
+
+hook_block "File is ${lines} lines (threshold: ${MIN_LINES}). Use the bulk-reader skill to delegate this read to Gemini instead of reading it directly. If you need exact content for editing, re-read with an offset/limit for just the section you need."

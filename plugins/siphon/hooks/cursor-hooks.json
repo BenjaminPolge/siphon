@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeReadFile": [
+      { "command": "\"${CURSOR_PLUGIN_ROOT}\"/hooks/check-file-size" }
+    ],
+    "beforeShellExecution": [
+      { "command": "\"${CURSOR_PLUGIN_ROOT}\"/hooks/check-bash-read" }
+    ]
+  }
+}

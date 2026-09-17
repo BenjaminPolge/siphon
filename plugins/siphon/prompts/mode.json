@@ -1,0 +1,10 @@
+{
+  "bulk-reader": {
+    "description": "Bulk file reader for code analysis",
+    "temperature": 0.2
+  },
+  "code-writer": {
+    "description": "Boilerplate code generator",
+    "temperature": 0.2
+  }
+}

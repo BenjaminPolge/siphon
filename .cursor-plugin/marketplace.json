@@ -1,18 +1,20 @@
 {
-  "name": "portal",
-  "version": "0.1.0",
+  "name": "siphon-plugins",
   "owner": {
-    "name": "Spotify Portal"
+    "name": "Benjamin Polge",
+    "url": "https://github.com/BenjaminPolge/siphon"
   },
   "plugins": [
     {
-      "name": "portal",
-      "version": "0.1.0",
-      "description": "Set up, diagnose, search, and operate Spotify Portal from Cursor through focused workflows and the Portal CLI.",
-      "source": {
-        "source": "url",
-        "url": "https://github.com/spotify/portal-ai-plugins.git"
-      }
+      "name": "siphon",
+      "displayName": "Siphon",
+      "version": "1.0.0",
+      "description": "Siphons I/O-heavy work to the Google AI Studio (Gemini) API to save tokens. Hooks block large file reads and redirect to bulk-read/code-write scripts that call Gemini directly.",
+      "author": {
+        "name": "Benjamin Polge"
+      },
+      "logo": "plugins/siphon/assets/siphon-icon-light.svg",
+      "source": "plugins/siphon"
     }
   ]
 }

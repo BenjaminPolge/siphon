@@ -1,0 +1,67 @@
+#!/bin/bash
+# Delegate boilerplate generation to the Gemini code-writer mode
+# Usage: code-write --spec "write tests for UserService" --reference ref.test.ts --target out.test.ts
+
+# Resolve $0 through symlinks before locating the library: setup offers to link
+# these scripts into ~/.local/bin, and dirname on the link would point at the
+# link's directory instead of the plugin. macOS has no `readlink -f`.
+_src="$0"
+while [ -L "$_src" ]; do
+  _dir=$(cd -P "$(dirname "$_src")" && pwd)
+  _src=$(readlink "$_src")
+  case "$_src" in /*) ;; *) _src="$_dir/$_src" ;; esac
+done
+. "$(cd -P "$(dirname "$_src")" && pwd)/lib/gemini.sh"
+
+MODE_NAME="code-writer"
+
+spec=""
+reference=""
+target=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --spec)      spec="$2"; shift 2 ;;
+    --reference) reference="$2"; shift 2 ;;
+    --target)    target="$2"; shift 2 ;;
+    *)           shift ;;
+  esac
+done
+
+if [ -z "$spec" ]; then
+  echo "Error: --spec is required" >&2
+  exit 1
+fi
+
+# A bare spec would generate context-free code that matches nothing in the
+# project — fail loudly rather than write plausible-looking output.
+if [ -z "$reference" ]; then
+  echo "Error: --reference is required — pass a file whose patterns the output should match." >&2
+  echo "For a follow-up, reference the file the previous call just generated." >&2
+  exit 1
+fi
+if [ ! -f "$reference" ]; then
+  echo "Error: reference file not found: $reference" >&2
+  exit 1
+fi
+
+siphon_preflight || exit 1
+siphon_tmpfile message_file || exit 1
+siphon_tmpfile answer_file || exit 1
+
+printf 'Spec: %s\n\nReference:\n' "$spec" > "$message_file"
+cat "$reference" >> "$message_file"
+
+siphon_invoke "$MODE_NAME" "$message_file" > "$answer_file" || exit 1
+
+# Strip markdown fences (model sometimes wraps despite instructions)
+clean=$(siphon_strip_outer_fence "$answer_file")
+
+# Write to target or stdout
+if [ -n "$target" ]; then
+  printf '%s\n' "$clean" > "$target"
+  echo "Wrote $(wc -l < "$target" | tr -d ' ') lines to $target" >&2
+else
+  echo "$clean"
+fi
+

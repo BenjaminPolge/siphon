@@ -1,0 +1,20 @@
+{
+  "name": "siphon-plugins",
+  "interface": {
+    "displayName": "Siphon Plugins"
+  },
+  "plugins": [
+    {
+      "name": "siphon",
+      "source": {
+        "source": "local",
+        "path": "./plugins/siphon"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

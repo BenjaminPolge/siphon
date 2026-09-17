@@ -1,0 +1,14 @@
+siphon
+Copyright 2026 Benjamin Polge
+
+This product includes software developed at Spotify AB
+(https://github.com/spotify/portal-ai-plugins), licensed under the
+Apache License, Version 2.0.
+
+Modifications from the upstream project include replacing the Spotify Portal
+CLI / AiKA transport with direct calls to the Google AI Studio (Gemini) API,
+removing the Portal software-catalog workflows, and adding Codex and Cursor
+host support.
+
+Not affiliated with, endorsed by, or sponsored by Spotify or Google.
+Gemini and Google AI Studio are trademarks of Google LLC.

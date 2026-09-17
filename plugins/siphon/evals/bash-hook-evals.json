@@ -1,0 +1,342 @@
+{
+  "skill_name": "siphon",
+  "description": "Evals for the check-bash-read PreToolUse hook",
+  "evals": [
+    {
+      "id": 1,
+      "name": "cat-large-file",
+      "input": {
+        "tool_input": {
+          "command": "cat {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "Plain cat on large file — should block"
+    },
+    {
+      "id": 2,
+      "name": "cat-small-file",
+      "input": {
+        "tool_input": {
+          "command": "cat {{FIXTURES}}/small.txt"
+        }
+      },
+      "fixture": {
+        "lines": 100
+      },
+      "expected_decision": "allow",
+      "reason": "Small file — not worth delegating"
+    },
+    {
+      "id": 3,
+      "name": "cat-with-flag",
+      "input": {
+        "tool_input": {
+          "command": "cat -n {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "cat with -n flag — should still block"
+    },
+    {
+      "id": 4,
+      "name": "head-large-file",
+      "input": {
+        "tool_input": {
+          "command": "head {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "head on large file — should block"
+    },
+    {
+      "id": 5,
+      "name": "head-with-count",
+      "input": {
+        "tool_input": {
+          "command": "head -100 {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "head -100 — still a bulk read, block"
+    },
+    {
+      "id": 6,
+      "name": "tail-large-file",
+      "input": {
+        "tool_input": {
+          "command": "tail {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "tail on large file — should block"
+    },
+    {
+      "id": 7,
+      "name": "less-large-file",
+      "input": {
+        "tool_input": {
+          "command": "less {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "less on large file — should block"
+    },
+    {
+      "id": 8,
+      "name": "cat-pipe",
+      "input": {
+        "tool_input": {
+          "command": "cat {{FIXTURES}}/large.txt | grep export"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "allow",
+      "reason": "Piped command — targeted read"
+    },
+    {
+      "id": 9,
+      "name": "cat-redirect",
+      "input": {
+        "tool_input": {
+          "command": "cat {{FIXTURES}}/large.txt > /tmp/out.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "allow",
+      "reason": "Redirect — copying file, not reading into context"
+    },
+    {
+      "id": 10,
+      "name": "non-read-command",
+      "input": {
+        "tool_input": {
+          "command": "git status"
+        }
+      },
+      "fixture": null,
+      "expected_decision": "allow",
+      "reason": "Not a file read command"
+    },
+    {
+      "id": 11,
+      "name": "grep-command",
+      "input": {
+        "tool_input": {
+          "command": "grep -n 'export' {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "grep without -c/-l/-q dumps every matching line — a 600-line file where all lines match is a full read"
+    },
+    {
+      "id": 12,
+      "name": "cat-quoted-path",
+      "input": {
+        "tool_input": {
+          "command": "cat \"{{FIXTURES}}/large.txt\""
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "Quoted path — should still be caught"
+    },
+    {
+      "id": 13,
+      "name": "cat-nonexistent",
+      "input": {
+        "tool_input": {
+          "command": "cat /tmp/siphon-does-not-exist.txt"
+        }
+      },
+      "fixture": null,
+      "expected_decision": "allow",
+      "reason": "File doesn't exist — let Bash handle the error"
+    },
+    {
+      "id": 14,
+      "name": "empty-command",
+      "input": {
+        "tool_input": {
+          "command": ""
+        }
+      },
+      "fixture": null,
+      "expected_decision": "allow",
+      "reason": "Empty command — pass through"
+    },
+    {
+      "id": 15,
+      "name": "missing-command-field",
+      "input": {
+        "tool_input": {}
+      },
+      "fixture": null,
+      "expected_decision": "allow",
+      "reason": "No command field — pass through"
+    },
+    {
+      "id": 16,
+      "name": "more-large-file",
+      "input": {
+        "tool_input": {
+          "command": "more {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "more on large file — only regex-matched command without coverage"
+    },
+    {
+      "id": 17,
+      "name": "head-n-space-count",
+      "input": {
+        "tool_input": {
+          "command": "head -n 5 {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": null,
+      "expected_decision": "allow",
+      "reason": "head -n 5 is an explicit small count — a peek, not a bulk read"
+    },
+    {
+      "id": 18,
+      "name": "grep-count-flag",
+      "input": {
+        "tool_input": {
+          "command": "grep -c export {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "allow",
+      "reason": "grep -c emits a number, not the file"
+    },
+    {
+      "id": 19,
+      "name": "grep-files-flag",
+      "input": {
+        "tool_input": {
+          "command": "grep -l export {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "allow",
+      "reason": "grep -l emits a filename, not the file"
+    },
+    {
+      "id": 20,
+      "name": "ripgrep-large",
+      "input": {
+        "tool_input": {
+          "command": "rg export {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "rg dumps matching lines just as grep does"
+    },
+    {
+      "id": 21,
+      "name": "awk-print-all",
+      "input": {
+        "tool_input": {
+          "command": "awk {print} {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "awk prints the whole file by default"
+    },
+    {
+      "id": 22,
+      "name": "sed-small-range",
+      "input": {
+        "tool_input": {
+          "command": "sed -n 1,10p {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "allow",
+      "reason": "an explicit small slice is a targeted read"
+    },
+    {
+      "id": 23,
+      "name": "head-n-large-count",
+      "input": {
+        "tool_input": {
+          "command": "head -n 500 {{FIXTURES}}/large.txt"
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "500 lines is a bulk read despite the explicit count"
+    },
+    {
+      "id": 24,
+      "name": "quoted-path-space",
+      "input": {
+        "tool_input": {
+          "command": "cat \"{{FIXTURES}}/with space.txt\""
+        }
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "a quoted path containing a space must not split into fragments"
+    },
+    {
+      "id": 25,
+      "name": "cursor-top-level",
+      "input": {
+        "command": "cat {{FIXTURES}}/large.txt"
+      },
+      "fixture": {
+        "lines": 800
+      },
+      "expected_decision": "block",
+      "reason": "Cursor sends the command at the top level, not under tool_input"
+    }
+  ]
+}
