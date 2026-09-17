@@ -135,6 +135,10 @@ bash plugins/siphon/evals/run.sh              # 86 tests, sans clé ni réseau
 bash plugins/siphon/evals/run.sh --benchmark  # ajoute l'aller-retour réel
 ```
 
+## Crédits
+
+Écrit par Benjamin Polge pour [Le Journal du Net](https://www.journaldunet.com).
+
 ## Licence
 
 Apache-2.0, comme le projet d'origine. Voir [`NOTICE`](NOTICE) pour l'attribution

@@ -130,6 +130,10 @@ bash plugins/siphon/evals/run.sh              # 86 checks, no key, no network
 bash plugins/siphon/evals/run.sh --benchmark  # adds the real round trip
 ```
 
+## Credits
+
+Built by Benjamin Polge for [Le Journal du Net](https://www.journaldunet.com).
+
 ## Licence
 
 Apache-2.0, like the upstream project. See [`NOTICE`](NOTICE) for the required
