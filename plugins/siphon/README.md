@@ -125,6 +125,25 @@ Both hooks emit the **union** of the three hosts' response shapes and exit 2,
 which is the one contract all three document as blocking. They read the tool
 payload from either the nested `tool_input` shape or Cursor's top-level shape.
 
+### When the backend is down, the gate opens
+
+A block redirects the read to `bulk-reader`, which calls Gemini. If Gemini cannot
+serve that call, blocking replaces a read the agent **can** do with a delegation
+it **cannot**, and the file gets read manually anyway: slower, and into context
+either way. This happened for a whole session in September 2026, when the shipped
+default model was retired and both hooks went on mandating a skill that returned
+404 on every call.
+
+So before blocking, the hooks probe `generateContent` once and allow with a
+warning if it cannot answer: no key, unreachable, retired model, or `429`. The
+verdict is cached per model, 600s when healthy and 60s when failing, so a
+per-minute quota trip does not disable the gate for long. The probe costs about
+three tokens. Metadata is deliberately not used: a retired model still answers
+`GET /models/<id>` with 200.
+
+Set `SIPHON_HOOK_FAIL_OPEN=0` to block regardless, which is what
+`evals/run.sh` does so the suite needs no key and no network.
+
 ### check-file-size
 
 Fires on file reads. Blocks above `SIPHON_MIN_LINES` (default 350). Allows
@@ -175,7 +194,7 @@ See the table in the [root README](../../README.md).
 - **Request size**: capped by `SIPHON_MAX_REQUEST_BYTES` (2 MB) as a cost
   circuit-breaker, not an OS limit. The model accepts about 1M tokens.
 - **Benchmarks**: the numbers in `evals/benchmarks.json` were measured against
-  the previous AiKA backend and are pending re-measurement on `gemini-2.5-flash`.
+  the previous AiKA backend and are pending re-measurement on `gemini-3.8-flash`.
 
 ## Evals
 

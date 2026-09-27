@@ -28,8 +28,22 @@ It began as a fork of `spotify/portal-ai-plugins`; see `NOTICE`.
 - The plugin identifier is `siphon`, producing `/siphon:<skill>` in Claude Code. It
   is identical across four plugin manifests and three marketplace entries —
   changing it means changing seven files.
-- Keep `doctor` read-only, and keep it off `generateContent`: diagnosis must not
-  spend tokens.
+- The default model name is spelled out in **16 places across 11 files** — the
+  default in `scripts/lib/gemini.sh`, its eval assertion in
+  `evals/transport-evals.sh`, three host manifests, `evals/benchmarks.json`, both
+  skills' probes, and all three READMEs including `README.fr.md`. Google retires
+  Flash models, so this name will move again: grep for the current one and change
+  every hit in one commit. `transport-evals.sh` asserts the literal, so the suite
+  fails if the default and its documentation drift apart — that is deliberate.
+- Keep `doctor` read-only: it reports and recommends, and never installs, writes
+  config, or sets variables. It may spend the **one** minimal `generateContent`
+  probe in §5, capped at a single output token with thinking off, about three
+  tokens. That probe is not optional. A metadata call cannot tell a live model
+  from a retired one: measured 2026-09-23, `gemini-2.5-flash` answered
+  `GET /models/<id>` with 200 while `generateContent` returned 404, so `doctor`
+  reported "Model: ready" throughout an outage that broke every delegation. A
+  check that cannot fail when the thing it checks is broken is worse than no
+  check, because it is believed.
 - Keep each skill canonical in `plugins/siphon/skills/`.
 - Do not publish the bundled skills as standalone packages.
 - Do not add release automation unless a tagged release or another distribution
@@ -43,6 +57,13 @@ It began as a fork of `spotify/portal-ai-plugins`; see `NOTICE`.
   (verified on codex-cli 0.154.0), so the gate is real only on Claude Code. Exit 2 is the one contract every host documents as blocking, so
   enforcement survives a host rejecting a JSON shape it does not know. Any change
   to hook output must stay covered by the eval suite.
+- The gate **fails open** when Gemini cannot serve the delegation it redirects to,
+  because a block that points at a broken backend costs the read and saves no
+  context. `hook_block` probes `generateContent` (never metadata, which answers
+  200 for a retired model) with a per-model cached verdict, and
+  `SIPHON_HOOK_FAIL_OPEN=0` restores absolute blocking. `evals/run.sh` sets that,
+  which is what keeps the suite free of network and keys — any new eval runner
+  must do the same.
 - Scripts resolve their own location from `$0`; skills resolve the plugin root
   through the four-tier `SIPHON_ROOT → CLAUDE_PLUGIN_ROOT → CURSOR_PLUGIN_ROOT →
   PLUGIN_ROOT` chain. **Never hardcode `${CLAUDE_PLUGIN_ROOT}` in skill prose** —

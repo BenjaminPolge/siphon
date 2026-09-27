@@ -17,7 +17,7 @@
   "interface": {
     "displayName": "Siphon",
     "shortDescription": "Delegate bulk reads and boilerplate to Gemini",
-    "longDescription": "Routes I/O-heavy work — reading large files, generating boilerplate — to gemini-2.5-flash through the Google AI Studio API, so the expensive reasoning model never pays for the bytes.",
+    "longDescription": "Routes I/O-heavy work — reading large files, generating boilerplate — to gemini-3.8-flash through the Google AI Studio API, so the expensive reasoning model never pays for the bytes.",
     "developerName": "Benjamin Polge / JDN",
     "category": "Developer Tools",
     "capabilities": [

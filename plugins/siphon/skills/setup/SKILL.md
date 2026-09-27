@@ -43,9 +43,15 @@ A resolved-but-not-executable root is the most common post-install failure — a
 
 ## 4. Check the key is present, without printing it
 
+`gemini.sh` accepts the key from `$GEMINI_API_KEY` or from the file at
+`$GEMINI_API_KEY_FILE`, so a key already in the file needs nothing more. Check both, or a
+working file-based install is told to set up a key it already has.
+
 ```bash
-[ -n "${GEMINI_API_KEY:-}" ] && echo "GEMINI_API_KEY: set (${#GEMINI_API_KEY} chars)" \
-                             || echo "GEMINI_API_KEY: NOT SET"
+keyfile="${GEMINI_API_KEY_FILE:-$HOME/.config/siphon/gemini.key}"
+if [ -n "${GEMINI_API_KEY:-}" ]; then echo "key: GEMINI_API_KEY (${#GEMINI_API_KEY} chars)"
+elif [ -r "$keyfile" ]; then k=$(head -n1 "$keyfile" | tr -d '[:space:]'); echo "key: $keyfile (${#k} chars)"
+else echo "key: NOT SET"; fi
 ```
 
 If unset, point the user to https://aistudio.google.com/apikey and to step 6.
@@ -53,26 +59,41 @@ Do not accept the key in conversation.
 
 ## 5. Verify connectivity and the model
 
-One metadata call, no generation cost:
+One minimal generation. A metadata call would not do: a retired model still answers
+metadata with `200` and refuses to generate. Capped at one output token with thinking off,
+so this costs about three tokens. The key goes through a `curl --config` pipe rather than
+argv, where `ps` would expose it, as `scripts/lib/gemini.sh` does.
 
 ```bash
-curl -sS -o /dev/null -w '%{http_code}\n' \
-  -H "x-goog-api-key: $GEMINI_API_KEY" \
-  "https://generativelanguage.googleapis.com/v1beta/models/${SIPHON_MODEL:-gemini-2.5-flash}"
+key="${GEMINI_API_KEY:-$(head -n1 "$keyfile" 2>/dev/null)}"
+printf 'header = "x-goog-api-key: %s"\n' "$(printf '%s' "$key" | tr -d '[:space:]')" \
+| curl -sS --config - -o /dev/null -w '%{http_code}\n' \
+    -H 'Content-Type: application/json' -X POST \
+    -d '{"contents":[{"parts":[{"text":"x"}]}],"generationConfig":{"maxOutputTokens":1,"thinkingConfig":{"thinkingBudget":0}}}' \
+    "https://generativelanguage.googleapis.com/v1beta/models/${SIPHON_MODEL:-gemini-3.8-flash}:generateContent"
 ```
 
-- `200` — key valid, model reachable.
+- `200` — key valid, model reachable **and able to answer**.
 - `400` — **an invalid key returns 400, not 401.** Treat it as a bad key.
-- `403` — key restricted, or the Generative Language API is not enabled.
-- `404` — wrong model id. List what is actually available:
+- `403` — key restricted, the Generative Language API is not enabled, or the key header
+  went out empty; re-check step 4 before replacing the key.
+- `402` — billing, not quota: prepayment credits depleted on a prepaid project. Top up at
+  <https://ai.studio/projects>. The body's `status` says `RESOURCE_EXHAUSTED`, same as a
+  `429`, so go by the HTTP code. The key itself is valid.
+- `404` — wrong model id, **or the model was retired**; the body names the replacement.
+  List what is actually available:
 
   ```bash
-  curl -sS -H "x-goog-api-key: $GEMINI_API_KEY" \
+  printf 'header = "x-goog-api-key: %s"\n' "$key" | curl -sS --config - \
     "https://generativelanguage.googleapis.com/v1beta/models" \
   | jq -r '.models[] | select(.supportedGenerationMethods[]? == "generateContent") | .name'
   ```
 
-- `429` — quota reached; the key works. Note it and continue.
+- `429` — quota reached; the key works. `error.details[].quotaId` names which limit: a
+  per-minute token bucket that clears in seconds, or a per-day request cap that does not.
+  `retryDelay` does not reliably distinguish them, and the numbers in the error did not match
+  observed behaviour, so send the user to <https://aistudio.google.com/rate-limit> for their
+  real limits rather than quoting the error's figure. Note which window it was, and continue.
 
 ## 6. Persist the configuration
 

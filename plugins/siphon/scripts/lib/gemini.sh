@@ -19,16 +19,43 @@
 . "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/plugin-root.sh"
 
 SIPHON_API_BASE="${SIPHON_API_BASE:-https://generativelanguage.googleapis.com/v1beta}"
-SIPHON_MODEL="${SIPHON_MODEL:-gemini-2.5-flash}"
+SIPHON_MODEL="${SIPHON_MODEL:-gemini-3.8-flash}"
 SIPHON_TIMEOUT_SECONDS="${SIPHON_TIMEOUT_SECONDS:-180}"
 SIPHON_CONNECT_TIMEOUT_SECONDS="${SIPHON_CONNECT_TIMEOUT_SECONDS:-10}"
 SIPHON_RETRIES="${SIPHON_RETRIES:-2}"
 
-# gemini-2.5-flash reasons by default, and those tokens are billed as output AND
-# drawn from the same budget as the answer: with maxOutputTokens at 40, a probe
-# spent 35 tokens thinking and had 1 left for the reply, returning MAX_TOKENS
-# with a truncated answer. Worker tasks -- read these files, emit this
-# boilerplate -- gain nothing from it, so it is off unless asked for.
+# Gemini Flash models reason by default, and those tokens are billed as output AND
+# drawn from the same budget as the answer. Worker tasks -- read these files, emit
+# this boilerplate -- gain nothing from it, so this asks for none.
+#
+# thinkingBudget below is a Gemini 2.5 parameter. Gemini 3 documents
+# thinkingConfig.thinkingLevel (minimal, low, medium, high) instead and takes
+# thinkingBudget only "for backwards compatibility", and no Gemini 3 model can
+# turn thinking off: minimal is the floor, and only some models have minimal.
+#
+# We keep sending thinkingBudget 0 anyway, because measurement says the
+# compatibility path already resolves to the lowest level each model allows.
+# Measured 2026-09-27 on one paid key, same 16-token prompt, thinking tokens:
+#
+#                          default   budget 0   explicit level
+#   gemini-3.8-flash          134        34     34 at "low", HTTP 400 at "minimal"
+#   gemini-3.6-flash          166         0      0 at "minimal"
+#   gemini-3.5-flash-lite       0         -      0 at "minimal"
+#
+# So budget 0 and the best level that model supports are indistinguishable, and
+# sending thinkingLevel would buy nothing. It would also be a trap: "minimal" is a
+# hard 400 on 3.8-flash and 3.7-flash, so any per-model mapping has to know which
+# models have it. Not worth the branching.
+#
+# What does differ is the model. gemini-3.8-flash cannot go below "low" and so
+# always spends some thinking; gemini-3.6-flash reaches zero. On a real 400-line
+# bulk-read needing arithmetic across the file, both answered correctly and 3.6
+# spent 0 thinking tokens against 3.8's 90 and 158 over two runs.
+#
+# Since no maxOutputTokens is set below, this costs tokens rather than truncating
+# the answer, and siphon surfaces it as "(+N thinking)". With a small output cap
+# the thinking eats the reply instead: on gemini-2.5-flash, maxOutputTokens 40 left
+# 35 thinking tokens and a 1-token answer.
 SIPHON_THINKING_BUDGET="${SIPHON_THINKING_BUDGET:-0}"
 
 # Cost circuit-breaker, not an OS limit. The old ARG_MAX ceiling existed because
@@ -162,6 +189,12 @@ siphon_transport() {
 
   # The key goes through a --config pipe: never in argv (visible to `ps`), never
   # in the query string (logged by every proxy), and never on disk.
+  #
+  # ${model} in the URL below must stay braced. Unbraced, zsh reads "$model:g..."
+  # as a history modifier and silently rewrites the URL: gemini-3.6-flash became
+  # "6-flashnerateContent", a 404 indistinguishable from a retired model. Keep
+  # this comment out of the curl invocation: a comment line ends a \-continued
+  # command, which leaves curl with no URL at all.
   printf 'header = "x-goog-api-key: %s"\n' "$key" | curl \
     --config - \
     --silent --show-error \
@@ -174,7 +207,7 @@ siphon_transport() {
     --retry "$SIPHON_RETRIES" \
     --output "$out_file" \
     --write-out '%{http_code}' \
-    "$SIPHON_API_BASE/models/$model:generateContent"
+    "$SIPHON_API_BASE/models/${model}:generateContent"
 }
 
 # Concatenates the non-thought text parts. Taking parts[0].text would silently

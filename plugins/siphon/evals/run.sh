@@ -28,6 +28,29 @@ for arg in "$@"; do
   esac
 done
 
+# Every suite here asserts the plugin's shipped defaults, so any SIPHON_*
+# configuration in the caller's environment tests their setup instead of this
+# code. That is not hypothetical: an exported SIPHON_MODEL, which is the natural
+# workaround when the default model breaks, made default-model-used assert
+# whatever the developer had pinned. Measured on a caller environment:
+# SIPHON_MAX_REQUEST_BYTES=1 fails 21 of 86, SIPHON_MIN_LINES=10 fails 3,
+# SIPHON_PEEK_LINES=999 fails 2, SIPHON_THINKING_BUDGET=-1 fails 1.
+#
+# So clear all of it, and say so rather than silently ignoring a deliberate
+# setting. This applies to --benchmark too: the figures in benchmarks.json are
+# only comparable if they were measured against the shipped defaults.
+siphon_leaked=$(env | sed -n 's/^\(SIPHON_[A-Za-z0-9_]*\)=.*/\1/p' | sort | tr '\n' ' ')
+if [ -n "$siphon_leaked" ]; then
+  printf "  \033[2mIgnoring caller configuration, testing shipped defaults: %s\033[0m\n" "$siphon_leaked"
+  for siphon_var in $siphon_leaked; do unset "$siphon_var"; done
+fi
+
+# The gate fails open when the Gemini backend cannot serve the delegation it
+# redirects to (see hooks/lib/hook-io.sh). These evals test routing decisions,
+# not connectivity, and this runner promises no API key and no network, so pin
+# the gate closed for the suite.
+export SIPHON_HOOK_FAIL_OPEN=0
+
 generate_fixture() {
   local path="$1" lines="$2"
   if [ "$lines" -eq 0 ]; then

@@ -19,6 +19,15 @@ CAPTURED_ARGS="$WORKDIR/captured-args"
 # A key must exist for siphon_api_key to succeed, but it must never reach argv.
 export GEMINI_API_KEY="test-key-do-not-use"
 
+# These checks read the library's own defaults, so inherited SIPHON_*
+# configuration retargets them: anyone who had pinned a model in their host
+# settings saw "default-model-used" fail against their own override rather than
+# against the shipped default. run.sh clears these too, but this suite also runs
+# standalone. Per-case overrides are set per case, after this point.
+for siphon_var in $(env | sed -n 's/^\(SIPHON_[A-Za-z0-9_]*\)=.*/\1/p'); do
+  unset "$siphon_var"
+done
+
 # shellcheck source=../scripts/lib/gemini.sh
 . "$PLUGIN_DIR/scripts/lib/gemini.sh"
 
@@ -80,7 +89,7 @@ check "thinking-disabled-by-default" "0" "$(body_field '.generationConfig.thinki
 check "no-history-sent" "1" "$(body_field '.contents | length')" \
   "every delegation is one shot"
 
-check "default-model-used" "gemini-2.5-flash" "$(cat "$CAPTURED_MODEL")" \
+check "default-model-used" "gemini-3.8-flash" "$(cat "$CAPTURED_MODEL")" \
   "the documented default model"
 
 # ── Security ──
@@ -100,6 +109,32 @@ check "key-missing-explained" "0" "$?" "the error names the variable and where t
 keyfile="$WORKDIR/key"; printf 'file-key\n' > "$keyfile"
 actual=$( unset GEMINI_API_KEY; GEMINI_API_KEY_FILE="$keyfile" bash -c '. "$1"; siphon_api_key' _ "$PLUGIN_DIR/scripts/lib/gemini.sh" )
 check "key-from-file" "file-key" "$actual" "a key file is read and its newline trimmed"
+
+# ── The real curl invocation ──
+#
+# Everything above stubs siphon_transport, so nothing exercises the actual curl
+# assembly. A comment line placed inside that \-continued command once ended it
+# early: curl ran with no URL and the URL line was executed as a command, so
+# every delegation failed while bash -n and all 86 checks still passed.
+#
+# So stub `curl` instead of the seam and run the real siphon_transport, asserting
+# the URL reaches argv. No key and no network, unlike a live smoke test, which
+# would be skipped exactly when someone has no key configured.
+CAPTURED_CURL_ARGS="$WORKDIR/captured-curl-args"
+(
+  # Re-source to get the real siphon_transport back over the stub above.
+  . "$PLUGIN_DIR/scripts/lib/gemini.sh"
+  curl() { printf '%s\n' "$@" > "$CAPTURED_CURL_ARGS"; printf '200'; }
+  printf '{"contents":[]}' > "$WORKDIR/real-body.json"
+  siphon_transport "$WORKDIR/real-body.json" "$WORKDIR/real-out.json" "probe-model" >/dev/null 2>&1
+)
+check "transport-url-reaches-curl" "1" \
+  "$(grep -cx -- "$SIPHON_API_BASE/models/probe-model:generateContent" "$CAPTURED_CURL_ARGS" 2>/dev/null)" \
+  "the endpoint must arrive as a curl argument, not be lost to a broken continuation"
+
+check "transport-url-is-last-arg" "$SIPHON_API_BASE/models/probe-model:generateContent" \
+  "$(tail -n1 "$CAPTURED_CURL_ARGS" 2>/dev/null)" \
+  "the URL is the final argument, so a truncated command is visible here"
 
 # ── Model resolution ──
 

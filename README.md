@@ -67,7 +67,7 @@ chosen server-side. This fork removes that dependency entirely.
 | Transport | `portal-cli actions aika:invoke-chat` | direct HTTPS to `generativelanguage.googleapis.com` |
 | Requirement | a Portal instance + auth | a Gemini API key |
 | Worker prompts | server-side "AiKA modes" | plain text files in `prompts/`, editable |
-| Model | chosen by the instance | `SIPHON_MODEL`, default `gemini-2.5-flash` |
+| Model | chosen by the instance | `SIPHON_MODEL`, default `gemini-3.8-flash` |
 | Request size | 120 KB (the prompt travelled through `argv`) | ~1M tokens |
 | Hosts | Claude Code | Claude Code, Codex, Cursor |
 | Portal catalog workflows | `search`, `service`, `actions`, `feedback` | removed: they query a Backstage catalog no API can replace |
@@ -129,18 +129,42 @@ been run against a live install.
 |---|---|---|
 | `GEMINI_API_KEY` | - | API key |
 | `GEMINI_API_KEY_FILE` | `~/.config/siphon/gemini.key` | Read when the variable is unset |
-| `SIPHON_MODEL` | `gemini-2.5-flash` | Model for delegated calls |
+| `SIPHON_MODEL` | `gemini-3.8-flash` | Model for delegated calls |
 | `SIPHON_MIN_LINES` | `350` | Line count above which a read is blocked |
+| `SIPHON_HOOK_FAIL_OPEN` | `1` | Allow a blocked read when Gemini cannot serve the delegation. `0` blocks regardless |
 | `SIPHON_PEEK_LINES` | `50` | An explicit count at or below this is a peek, not a bulk read |
 | `SIPHON_THINKING_BUDGET` | `0` | Gemini reasoning budget (see below) |
 | `SIPHON_TIMEOUT_SECONDS` | `180` | Per-call ceiling |
 
-### Why reasoning is off by default
+### Why reasoning is asked to be off
 
-`gemini-2.5-flash` reasons by default, and those tokens are billed as output **and drawn
-from the same budget as the answer**. With `maxOutputTokens` at 40, a probe spent 35
-tokens thinking and had 1 left to reply, returning a truncated answer. Worker tasks gain
-nothing from it. Set `SIPHON_THINKING_BUDGET=-1` to let the model decide.
+Gemini Flash models reason by default, and those tokens are billed as output **and drawn
+from the same budget as the answer**. Worker tasks gain nothing from it, so Siphon asks for
+none.
+
+**How far it gets depends on the model, not on the parameter.** `SIPHON_THINKING_BUDGET=0`
+is sent as `thinkingConfig.thinkingBudget`, a Gemini 2.5 parameter. Gemini 3 documents
+`thinkingConfig.thinkingLevel` (`minimal`, `low`, `medium`, `high`) instead and accepts
+`thinkingBudget` only for backwards compatibility, and **no Gemini 3 model can turn thinking
+off entirely**: `minimal` is the floor, and not every model has `minimal`.
+
+Measured 2026-09-27 on one paid key, same 16-token prompt. Thinking tokens:
+
+| Model | Default | `thinkingBudget: 0` | Explicit `thinkingLevel` |
+|---|---|---|---|
+| `gemini-3.8-flash` | 134 | 34 | 34 at `low`; **HTTP 400** at `minimal` |
+| `gemini-3.6-flash` | 166 | 0 | 0 at `minimal` |
+| `gemini-3.5-flash-lite` | 0 | - | 0 at `minimal` |
+
+So `thinkingBudget: 0` already resolves to the lowest level each model allows, which is why
+Siphon keeps sending it. `gemini-3.8-flash` cannot go below `low` and so always spends some
+thinking; `gemini-3.6-flash` reaches zero. On a real 400-line `bulk-read` requiring arithmetic
+across the file, both answered correctly, and 3.6 spent 0 thinking tokens against 3.8's 90 and
+158 across two runs.
+
+Because Siphon sets no output cap, this costs tokens rather than truncating the answer, and
+the per-call line reports it as `(+N thinking)`. Set `SIPHON_THINKING_BUDGET=-1` to let the
+model decide explicitly.
 
 ## What doesn't get delegated
 

@@ -69,7 +69,7 @@ choisi côté serveur. Ce fork supprime entièrement cette dépendance.
 | Transport | `portal-cli actions aika:invoke-chat` | HTTPS direct vers `generativelanguage.googleapis.com` |
 | Prérequis | une instance Portal + authentification | une clé API Gemini |
 | Prompts d'exécution | « modes AiKA » côté serveur | fichiers texte dans `prompts/`, modifiables |
-| Modèle | imposé par l'instance | `SIPHON_MODEL`, par défaut `gemini-2.5-flash` |
+| Modèle | imposé par l'instance | `SIPHON_MODEL`, par défaut `gemini-3.8-flash` |
 | Taille de requête | 120 Ko (le prompt passait par `argv`) | ~1 M de tokens |
 | Hôtes | Claude Code | Claude Code, Codex, Cursor |
 | Workflows catalogue Portal | `search`, `service`, `actions`, `feedback` | supprimés : ils interrogent un catalogue Backstage qu'aucune API ne remplace |
@@ -134,19 +134,43 @@ exécuté sur une installation réelle.
 |---|---|---|
 | `GEMINI_API_KEY` | - | Clé API |
 | `GEMINI_API_KEY_FILE` | `~/.config/siphon/gemini.key` | Lu si la variable n'est pas définie |
-| `SIPHON_MODEL` | `gemini-2.5-flash` | Modèle des appels délégués |
+| `SIPHON_MODEL` | `gemini-3.8-flash` | Modèle des appels délégués |
 | `SIPHON_MIN_LINES` | `350` | Nombre de lignes au-delà duquel une lecture est bloquée |
+| `SIPHON_HOOK_FAIL_OPEN` | `1` | Autorise une lecture bloquée quand Gemini ne peut pas assurer la délégation. `0` bloque quand même |
 | `SIPHON_PEEK_LINES` | `50` | Un compte explicite inférieur ou égal est un coup d'œil, pas une lecture massive |
 | `SIPHON_THINKING_BUDGET` | `0` | Budget de réflexion de Gemini (voir ci-dessous) |
 | `SIPHON_TIMEOUT_SECONDS` | `180` | Plafond par appel |
 
-### Pourquoi la réflexion est désactivée par défaut
+### Pourquoi la réflexion est demandée désactivée
 
-`gemini-2.5-flash` réfléchit d'office, et ces tokens sont facturés en sortie **et
-prélevés sur le budget de la réponse**. Avec `maxOutputTokens` à 40, un test a consommé
-35 tokens de réflexion et n'en a laissé qu'**un seul** pour répondre, renvoyant une
-réponse tronquée. Les tâches d'exécution n'y gagnent rien. Mettez
-`SIPHON_THINKING_BUDGET=-1` pour laisser le modèle décider.
+Les modèles Gemini Flash réfléchissent d'office, et ces tokens sont facturés en sortie **et
+prélevés sur le budget de la réponse**. Les tâches d'exécution n'y gagnent rien : Siphon
+n'en demande donc aucun.
+
+**Le résultat dépend du modèle, pas du paramètre.** `SIPHON_THINKING_BUDGET=0` est envoyé
+comme `thinkingConfig.thinkingBudget`, un paramètre Gemini 2.5. Gemini 3 documente à la place
+`thinkingConfig.thinkingLevel` (`minimal`, `low`, `medium`, `high`) et n'accepte
+`thinkingBudget` que par compatibilité, et **aucun modèle Gemini 3 ne peut désactiver
+totalement la réflexion** : `minimal` est le plancher, et tous les modèles ne l'ont pas.
+
+Mesuré le 27/09/2026 sur une clé payante, avec le même prompt de 16 tokens. Tokens de
+réflexion :
+
+| Modèle | Par défaut | `thinkingBudget: 0` | `thinkingLevel` explicite |
+|---|---|---|---|
+| `gemini-3.8-flash` | 134 | 34 | 34 en `low` ; **HTTP 400** en `minimal` |
+| `gemini-3.6-flash` | 166 | 0 | 0 en `minimal` |
+| `gemini-3.5-flash-lite` | 0 | - | 0 en `minimal` |
+
+`thinkingBudget: 0` aboutit donc déjà au niveau le plus bas autorisé par chaque modèle, d'où
+son maintien dans Siphon. `gemini-3.8-flash` ne peut pas descendre sous `low` et consomme donc
+toujours un peu de réflexion ; `gemini-3.6-flash` atteint zéro. Sur un vrai `bulk-read` de 400
+lignes exigeant un calcul sur tout le fichier, les deux ont répondu correctement, et 3.6 n'a
+consommé aucun token de réflexion contre 90 et 158 pour 3.8 sur deux exécutions.
+
+Comme Siphon ne fixe aucun plafond de sortie, cela coûte des tokens sans tronquer la réponse,
+et la ligne de compte-rendu l'indique par `(+N thinking)`. Mettez
+`SIPHON_THINKING_BUDGET=-1` pour laisser explicitement le modèle décider.
 
 ## Ce qui n'est jamais délégué
 

@@ -15,7 +15,6 @@
     "gemini",
     "google-ai-studio"
   ],
-  "hooks": "./hooks/hooks.json",
   "homepage": "https://github.com/BenjaminPolge/siphon",
   "repository": "https://github.com/BenjaminPolge/siphon"
 }
